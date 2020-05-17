@@ -1,0 +1,159 @@
+---
+title: "STAT 481 - Project 1"
+author: "Thomas Gierach"
+date: "3/30/2020"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+The experiment is to develop one's own rating system and find which cereal is the most healthy for you.Try to predict the cereal rating based on the nutrition facts and other observable characteristics. What variables best predict the rating? Can you quantify how good your predictive model is?
+
+rating =  protein + sodium + fiber  + sugars + vitamins + weight + cups.
+
+
+
+```{r, echo = TRUE}
+cereals = read.csv("CerealsRating.csv")
+str(cereals)
+summary(cereals)
+cereals
+cereals2 <- cereals[,2:length(cereals)]
+cereals2
+
+```
+```{r, echo = TRUE}
+
+## Normality Check
+attach(cereals2)
+MLR <- lm(rating~protein+sodium+fiber+sugars+vitamins+weight+cups)
+summary(MLR)
+qqnorm(MLR$residual)
+qqline(MLR$residual)
+shapiro.test(MLR$residual)
+
+## Equal Variance Check
+plot(MLR)
+
+#The points on the residuals vs fitted are skewed to the right
+
+## Linearity Check
+	par(mfrow=c(3,3))
+	plot(x = protein, y = MLR$residual, col = "red")
+	abline(h=0)
+	plot(x = sodium, y = MLR$residual, col = "blue")
+	abline(h=0)
+	plot(x = fiber, y = MLR$residual, col = "gray")
+	abline(h=0)
+	plot(x = sugars, y = MLR$residual, col = "green")
+	abline(h=0)
+	plot(x = vitamins, y = MLR$residual, col = "orange")
+	abline(h=0)
+	plot(x = weight, y = MLR$residual, col = "yellow2")
+	abline(h=0)
+	plot(x = cups, y = MLR$residual, col = "violet")
+	abline(h=0)
+	
+	#protein has very little data at 5
+	#sodium is skewed to the left
+	#fiber is skewed to the right
+	#sugars is random
+	#vitamins have a big gap between 25 and 100
+	#weight is mostly at 1.0
+	#cups has no pattern
+	
+	## Independence Check (Durbin-Watson): Not required since not time-series data
+	dwtest(MLR, alternative = "two.sided")
+```
+```{r echo = TRUE}
+## Transformation on Y
+library(MASS)
+trans <- boxcox(rating~protein+sodium+fiber+sugars+vitamins+weight+cups,
+	data=cereals2,
+	plotit=F, #get boxcox instead of the plot
+	lambda = seq(-3, 3, by=0.125))
+maxyentry <- which.max(trans$y) # obtain index number of largest y
+trans$x[maxyentry] # obtain lambda value
+
+## Add new column to dataframe with transformed variable
+cereals2$logY <- log(cereals2$rating)
+cereals2$logprotein <- log(cereals2$protein)
+cereals2$logsodium <- log(cereals2$sodium)
+cereals2$logfiber <- log(cereals2$fiber)
+cereals2$logvitamins <- log(cereals2$vitamins)
+cereals2$logweight <- log(cereals2$weight)
+```
+
+``` {r echo = TRUE}
+## Full Model with Y-Transformation
+library(car)
+attach(cereals2)
+MLR2 <- lm(logY~protein+sodium+fiber+sugars+vitamins+weight+cups)
+summary(MLR2) # gives partial t-test values and regression F value
+anova(MLR2) # provides ANOVA table for overall model
+
+## Normality Check
+par(mfrow=c(1,1))
+qqnorm(MLR2$residual)
+qqline(MLR2$residual)
+shapiro.test(MLR2$residual)
+
+## Equal Variance Check (top left corner)
+par(mfrow=c(2,2))
+plot(MLR2)
+
+## Linearity Check
+par(mfrow=c(3,3))
+plot(x = protein, y = MLR2$residual, col = "red")
+abline(h=0)
+plot(x = sodium, y = MLR2$residual, col = "blue")
+abline(h=0)
+plot(x = fiber, y = MLR2$residual, col = "gray")
+abline(h=0)
+plot(x = sugars, y = MLR2$residual, col = "green")
+abline(h=0)
+plot(x = vitamins, y = MLR2$residual, col = "orange")
+abline(h=0)
+plot(x = weight, y = MLR2$residual, col = "yellow2")
+abline(h=0)
+plot(x = cups, y = MLR2$residual, col = "violet")
+abline(h=0)
+
+## VIF Check
+vif(MLR2)
+	
+MLR3 <- lm(rating~protein+sodium+fiber+sugars+vitamins+cups)
+summary(MLR3)
+MLR4 <- lm(rating~protein+sodium+fiber+sugars+cups)
+summary(MLR4)
+MLR5 <- lm(rating~protein+sodium+fiber+sugars)
+summary(MLR5)
+anova(MLR5)
+MLR6 <- lm(rating~sodium+fiber+sugars)
+summary(MLR6)
+anova(MLR6)
+
+#Normality Check
+qqnorm(MLR6$residual)
+qqline(MLR6$residual)
+shapiro.test(MLR6$residual)
+
+## Equal Variance Check
+plot(MLR6)
+
+## Linearity Check
+	par(mfrow=c(1,3))
+
+	plot(x = cereals2$sodium, y = MLR6$residual, col = "blue")
+	abline(h=0)
+	plot(x = cereals2$logfiber, y = MLR6$residual, col = "gray")
+	abline(h=0)
+	plot(x = sugars, y = MLR6$residual, col = "green")
+	abline(h=0)
+	
+	## Independence Check (Durbin-Watson): Not required since not time-series data
+	dwtest(MLR, alternative = "two.sided")
+```
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
